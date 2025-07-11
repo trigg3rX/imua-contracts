@@ -78,7 +78,7 @@ contract TriggerXAvsOwnerTests is Test {
         assertEq(avsProxy.slasher(), newS);
     }
 
-    function _defaultParams() internal view returns (TaskDefinitionParams memory p) {
+    function _defaultParams() internal pure returns (TaskDefinitionParams memory p) {
         p.baseRewardFeeForAttesters = 1 ether;
         p.baseRewardFeeForPerformer = 0;
         p.baseRewardFeeForAggregator = 0;

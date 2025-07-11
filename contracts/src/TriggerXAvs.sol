@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity 0.8.30;
+pragma solidity ^0.8.0;
 
 import "./interfaces/IAVSManager.sol" as avs;
 import "@openzeppelin-upgrades/contracts/access/OwnableUpgradeable.sol";

@@ -1,5 +1,5 @@
-// // SPDX-License-Identifier: MIT
-// pragma solidity >=0.8.17;
+// SPDX-License-Identifier: MIT
+pragma solidity >=0.8.17;
 
 // /// @title ImuaAVSManager 
 // /// @notice Solidity representation of the actual Imua AVS Manager precompile implementation
