@@ -66,10 +66,10 @@ echo "✅ Generated TaskDefinitionLibrary.go"
 echo -e "${GREEN}✨ All bindings generated successfully!${NC}"
 echo ""
 echo -e "${YELLOW}📦 To use in your Go project:${NC}"
-echo "  go get github.com/triggerx/triggerx-contracts/bindings"
+echo "  go get github.com/triggerx/imua-contracts/bindings"
 echo ""
 echo -e "${YELLOW}📖 Example usage:${NC}"
-echo '  import triggerxavs "github.com/triggerx/triggerx-contracts/bindings/triggerxavs"'
-echo '  import taskdefinition "github.com/triggerx/triggerx-contracts/bindings/taskdefinition"'
+echo '  import triggerxavs "github.com/triggerx/imua-contracts/bindings/triggerxavs"'
+echo '  import taskdefinition "github.com/triggerx/imua-contracts/bindings/taskdefinition"'
 echo '  contract, err := triggerxavs.NewTriggerXAvs(address, client)' 
 echo '  taskDefinition, err := taskdefinition.NewTaskDefinitionLibrary(address, client)' 
