@@ -5,7 +5,7 @@ import "@openzeppelin-upgrades/contracts/access/OwnableUpgradeable.sol";
 import "@openzeppelin-upgrades/contracts/proxy/utils/UUPSUpgradeable.sol";
 
 interface ITriggerGasRegistry {
-    function moveTG(address from, address to, uint256 amount) external;
+    function deductTG(address user, uint256 amount) external;
 }
 
 /// @title JobRegistry - Manages jobs and task execution tracking
@@ -17,14 +17,16 @@ contract JobRegistry is OwnableUpgradeable, UUPSUpgradeable {
     // ---------------------------------------------------------------------
     
     struct Job {
-        address owner;        // 20 bytes - job creator/payer
-        bytes32 salt;         // 32 bytes - random salt for hash verification
-        uint32  executed;     // 4 bytes - number of tasks executed
-        uint32  createdAt;    // 4 bytes - block.timestamp when created
+        address creator; 
+        bytes32 salt;    
+        uint32  executed;
+        uint32  createdAt;
     }
     
     /// @dev Maps jobHash to job details
     mapping(bytes32 => Job) public jobs;
+
+    mapping(address => bytes32) public jobHashes;
     
     /// @dev Address of TriggerGasRegistry contract
     ITriggerGasRegistry public triggerGasRegistry;
@@ -42,7 +44,7 @@ contract JobRegistry is OwnableUpgradeable, UUPSUpgradeable {
         bytes32 salt,
         uint32 timestamp
     );
-    
+
     event TaskExecuted(
         bytes32 indexed jobHash,
         uint64 taskNonce,
@@ -112,10 +114,10 @@ contract JobRegistry is OwnableUpgradeable, UUPSUpgradeable {
     /// @param salt The random salt used in jobHash generation
     function createJob(bytes32 jobHash, bytes32 salt) external {
         require(jobHash != bytes32(0), "Invalid jobHash");
-        require(jobs[jobHash].owner == address(0), "Job already exists");
+        require(jobs[jobHash].creator == address(0), "Job already exists");
         
         jobs[jobHash] = Job({
-            owner: msg.sender,
+            creator: msg.sender,
             salt: salt,
             executed: 0,
             createdAt: uint32(block.timestamp)
@@ -141,7 +143,7 @@ contract JobRegistry is OwnableUpgradeable, UUPSUpgradeable {
     ) external onlyTriggerXAvs {
         // Verify the job exists
         Job storage job = jobs[jobHash];
-        require(job.owner != address(0), "Job does not exist");
+        require(job.creator != address(0), "Job does not exist");
         
         // Verify the jobHash was correctly derived from jobId and salt
         bytes32 expectedJobHash = keccak256(abi.encodePacked(jobId, job.salt));
@@ -153,7 +155,7 @@ contract JobRegistry is OwnableUpgradeable, UUPSUpgradeable {
         
         // Charge the job owner and pay the performer
         if (tgCost > 0) {
-            triggerGasRegistry.moveTG(job.owner, performer, tgCost);
+            triggerGasRegistry.deductTG(job.creator, tgCost);
         }
         
         // Update job state
@@ -168,18 +170,18 @@ contract JobRegistry is OwnableUpgradeable, UUPSUpgradeable {
     
     /// @notice Returns job details for a given jobHash
     function getJob(bytes32 jobHash) external view returns (
-        address owner,
+        address creator,
         bytes32 salt,
         uint32 executed,
         uint32 createdAt
     ) {
         Job memory job = jobs[jobHash];
-        return (job.owner, job.salt, job.executed, job.createdAt);
+        return (job.creator, job.salt, job.executed, job.createdAt);
     }
     
     /// @notice Returns just the owner of a job
     function getJobOwner(bytes32 jobHash) external view returns (address) {
-        return jobs[jobHash].owner;
+        return jobs[jobHash].creator;
     }
     
     /// @notice Returns job execution stats
@@ -193,6 +195,6 @@ contract JobRegistry is OwnableUpgradeable, UUPSUpgradeable {
     
     /// @notice Checks if a job exists
     function jobExists(bytes32 jobHash) external view returns (bool) {
-        return jobs[jobHash].owner != address(0);
+        return jobs[jobHash].creator != address(0);
     }
 }

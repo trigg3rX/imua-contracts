@@ -8,7 +8,7 @@ import {CREATE3} from "solady/src/utils/CREATE3.sol";
 
 contract HubTriggerGasRegistryDeploy is Script {
     function run() public {
-        uint256 privateKey = vm.envUint("DEV0_PRIVATE_KEY");
+        uint256 privateKey = vm.envUint("PRIVATE_KEY");
         vm.startBroadcast(privateKey);
         bytes32 salt = bytes32(keccak256(abi.encodePacked(vm.envString("TG_SALT"))));
         address payable AVS = payable(0x4729BC58ADC71E5386b995f99402176757d75940);
