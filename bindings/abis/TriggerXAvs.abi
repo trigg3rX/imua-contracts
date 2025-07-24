@@ -14,6 +14,19 @@
   },
   {
     "type": "function",
+    "name": "avsHook",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
     "name": "challenge",
     "inputs": [
       {
@@ -66,6 +79,11 @@
         "internalType": "uint8"
       },
       {
+        "name": "taskData",
+        "type": "bytes",
+        "internalType": "bytes"
+      },
+      {
         "name": "taskResponsePeriod",
         "type": "uint64",
         "internalType": "uint64"
@@ -105,41 +123,34 @@
         "internalType": "string"
       },
       {
-        "name": "defParams",
-        "type": "tuple",
-        "internalType": "struct TaskDefinitionParams",
-        "components": [
-          {
-            "name": "baseRewardFeeForAttesters",
-            "type": "uint256",
-            "internalType": "uint256"
-          },
-          {
-            "name": "baseRewardFeeForPerformer",
-            "type": "uint256",
-            "internalType": "uint256"
-          },
-          {
-            "name": "baseRewardFeeForAggregator",
-            "type": "uint256",
-            "internalType": "uint256"
-          },
-          {
-            "name": "minimumVotingPower",
-            "type": "uint256",
-            "internalType": "uint256"
-          },
-          {
-            "name": "restrictedOperatorIds",
-            "type": "uint256[]",
-            "internalType": "uint256[]"
-          },
-          {
-            "name": "maximumNumberOfAttesters",
-            "type": "uint256",
-            "internalType": "uint256"
-          }
-        ]
+        "name": "baseRewardFeeForAttesters",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "baseRewardFeeForPerformer",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "baseRewardFeeForAggregator",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "minimumVotingPower",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "restrictedOperatorIds",
+        "type": "address[]",
+        "internalType": "address[]"
+      },
+      {
+        "name": "maximumNumberOfAttesters",
+        "type": "uint256",
+        "internalType": "uint256"
       }
     ],
     "outputs": [
@@ -492,8 +503,8 @@
           },
           {
             "name": "restrictedOperatorIds",
-            "type": "uint256[]",
-            "internalType": "uint256[]"
+            "type": "address[]",
+            "internalType": "address[]"
           },
           {
             "name": "maximumNumberOfAttesters",
@@ -887,55 +898,16 @@
   },
   {
     "type": "function",
-    "name": "rewardManager",
-    "inputs": [],
-    "outputs": [
-      {
-        "name": "",
-        "type": "address",
-        "internalType": "address"
-      }
-    ],
-    "stateMutability": "view"
-  },
-  {
-    "type": "function",
-    "name": "setRewardManager",
+    "name": "setAvsHook",
     "inputs": [
       {
-        "name": "_rewardManager",
+        "name": "_avsHook",
         "type": "address",
         "internalType": "address"
       }
     ],
     "outputs": [],
     "stateMutability": "nonpayable"
-  },
-  {
-    "type": "function",
-    "name": "setSlasher",
-    "inputs": [
-      {
-        "name": "_slasher",
-        "type": "address",
-        "internalType": "address"
-      }
-    ],
-    "outputs": [],
-    "stateMutability": "nonpayable"
-  },
-  {
-    "type": "function",
-    "name": "slasher",
-    "inputs": [],
-    "outputs": [
-      {
-        "name": "",
-        "type": "address",
-        "internalType": "address"
-      }
-    ],
-    "stateMutability": "view"
   },
   {
     "type": "function",
@@ -1053,6 +1025,54 @@
   },
   {
     "type": "function",
+    "name": "updateTaskDefinition",
+    "inputs": [
+      {
+        "name": "taskDefinitionId",
+        "type": "uint8",
+        "internalType": "uint8"
+      },
+      {
+        "name": "name",
+        "type": "string",
+        "internalType": "string"
+      },
+      {
+        "name": "baseRewardFeeForAttesters",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "baseRewardFeeForPerformer",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "baseRewardFeeForAggregator",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "minimumVotingPower",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "restrictedOperatorIds",
+        "type": "address[]",
+        "internalType": "address[]"
+      },
+      {
+        "name": "maximumNumberOfAttesters",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
     "name": "upgradeToAndCall",
     "inputs": [
       {
@@ -1068,6 +1088,44 @@
     ],
     "outputs": [],
     "stateMutability": "payable"
+  },
+  {
+    "type": "event",
+    "name": "AVSRegistered",
+    "inputs": [
+      {
+        "name": "sender",
+        "type": "address",
+        "indexed": true,
+        "internalType": "address"
+      },
+      {
+        "name": "avsName",
+        "type": "string",
+        "indexed": false,
+        "internalType": "string"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "AVSUpdated",
+    "inputs": [
+      {
+        "name": "sender",
+        "type": "address",
+        "indexed": true,
+        "internalType": "address"
+      },
+      {
+        "name": "avsName",
+        "type": "string",
+        "indexed": false,
+        "internalType": "string"
+      }
+    ],
+    "anonymous": false
   },
   {
     "type": "event",
@@ -1099,22 +1157,16 @@
     "name": "ChallengeSubmitted",
     "inputs": [
       {
-        "name": "taskID",
+        "name": "taskId",
         "type": "uint64",
-        "indexed": true,
+        "indexed": false,
         "internalType": "uint64"
       },
       {
-        "name": "challenger",
+        "name": "taskAddress",
         "type": "address",
-        "indexed": true,
-        "internalType": "address"
-      },
-      {
-        "name": "isExpected",
-        "type": "bool",
         "indexed": false,
-        "internalType": "bool"
+        "internalType": "address"
       }
     ],
     "anonymous": false
@@ -1179,51 +1231,61 @@
   },
   {
     "type": "event",
-    "name": "RewardManagerUpdated",
-    "inputs": [
-      {
-        "name": "newRewardManager",
-        "type": "address",
-        "indexed": true,
-        "internalType": "address"
-      }
-    ],
-    "anonymous": false
-  },
-  {
-    "type": "event",
-    "name": "SlasherUpdated",
-    "inputs": [
-      {
-        "name": "newSlasher",
-        "type": "address",
-        "indexed": true,
-        "internalType": "address"
-      }
-    ],
-    "anonymous": false
-  },
-  {
-    "type": "event",
     "name": "TaskCreated",
     "inputs": [
       {
-        "name": "taskID",
+        "name": "taskId",
+        "type": "uint256",
+        "indexed": false,
+        "internalType": "uint256"
+      },
+      {
+        "name": "issuer",
+        "type": "address",
+        "indexed": false,
+        "internalType": "address"
+      },
+      {
+        "name": "name",
+        "type": "string",
+        "indexed": false,
+        "internalType": "string"
+      },
+      {
+        "name": "taskDefinitionId",
+        "type": "uint8",
+        "indexed": false,
+        "internalType": "uint8"
+      },
+      {
+        "name": "taskData",
+        "type": "bytes",
+        "indexed": false,
+        "internalType": "bytes"
+      },
+      {
+        "name": "taskResponsePeriod",
         "type": "uint64",
-        "indexed": true,
+        "indexed": false,
         "internalType": "uint64"
       },
       {
-        "name": "definitionHash",
-        "type": "bytes32",
+        "name": "taskChallengePeriod",
+        "type": "uint64",
         "indexed": false,
-        "internalType": "bytes32"
+        "internalType": "uint64"
       },
       {
-        "name": "kind",
+        "name": "thresholdPercentage",
         "type": "uint8",
         "indexed": false,
         "internalType": "uint8"
+      },
+      {
+        "name": "taskStatisticalPeriod",
+        "type": "uint64",
+        "indexed": false,
+        "internalType": "uint64"
       }
     ],
     "anonymous": false
@@ -1249,12 +1311,12 @@
   },
   {
     "type": "event",
-    "name": "TaskDefinitionCreated",
+    "name": "TaskDefinitionUpdated",
     "inputs": [
       {
         "name": "taskDefinitionId",
         "type": "uint8",
-        "indexed": false,
+        "indexed": true,
         "internalType": "uint8"
       },
       {
@@ -1262,42 +1324,6 @@
         "type": "string",
         "indexed": false,
         "internalType": "string"
-      },
-      {
-        "name": "baseRewardFeeForAttesters",
-        "type": "uint256",
-        "indexed": false,
-        "internalType": "uint256"
-      },
-      {
-        "name": "baseRewardFeeForPerformer",
-        "type": "uint256",
-        "indexed": false,
-        "internalType": "uint256"
-      },
-      {
-        "name": "baseRewardFeeForAggregator",
-        "type": "uint256",
-        "indexed": false,
-        "internalType": "uint256"
-      },
-      {
-        "name": "minimumVotingPower",
-        "type": "uint256",
-        "indexed": false,
-        "internalType": "uint256"
-      },
-      {
-        "name": "restrictedOperatorIds",
-        "type": "uint256[]",
-        "indexed": false,
-        "internalType": "uint256[]"
-      },
-      {
-        "name": "maximumNumberOfAttesters",
-        "type": "uint256",
-        "indexed": false,
-        "internalType": "uint256"
       }
     ],
     "anonymous": false

@@ -41,27 +41,11 @@ else
     exit 1
 fi
 
-
-
-# Extract TaskDefinitionLibrary ABI
-if [ -f "$CONTRACT_OUT_DIR/TaskDefinitionLibrary.sol/TaskDefinitionLibrary.json" ]; then
-    cat "$CONTRACT_OUT_DIR/TaskDefinitionLibrary.sol/TaskDefinitionLibrary.json" | jq '.abi' > abis/TaskDefinitionLibrary.abi
-    echo "✅ Extracted TaskDefinitionLibrary ABI"
-else
-    echo -e "${RED}❌ TaskDefinitionLibrary.json not found. Run 'forge build' first.${NC}"
-    exit 1
-fi
-
 echo -e "${YELLOW}⚙️  Generating Go bindings...${NC}"
 
 # Generate Go bindings with separate packages to avoid conflicts
 abigen --abi abis/TriggerXAvs.abi --pkg triggerxavs --type TriggerXAvs --out contracts/TriggerXAvs.go
 echo "✅ Generated TriggerXAvs.go"
-
-
-
-abigen --abi abis/TaskDefinitionLibrary.abi --pkg taskdefinition --type TaskDefinitionLibrary --out contracts/TaskDefinitionLibrary.go
-echo "✅ Generated TaskDefinitionLibrary.go"
 
 echo -e "${GREEN}✨ All bindings generated successfully!${NC}"
 echo ""
@@ -70,6 +54,4 @@ echo "  go get github.com/triggerx/imua-contracts/bindings"
 echo ""
 echo -e "${YELLOW}📖 Example usage:${NC}"
 echo '  import triggerxavs "github.com/triggerx/imua-contracts/bindings/triggerxavs"'
-echo '  import taskdefinition "github.com/triggerx/imua-contracts/bindings/taskdefinition"'
 echo '  contract, err := triggerxavs.NewTriggerXAvs(address, client)' 
-echo '  taskDefinition, err := taskdefinition.NewTaskDefinitionLibrary(address, client)' 
