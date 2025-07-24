@@ -1,8 +1,6 @@
-module github.com/triggerx/triggerx-contracts/bindings
+module github.com/trigg3rX/imua-contracts/bindings
 
-go 1.23.0
-
-toolchain go1.23.10
+go 1.24.2
 
 require github.com/ethereum/go-ethereum v1.16.1
 
