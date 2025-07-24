@@ -1,10 +1,21 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.0;
+pragma solidity ^0.8.17;
 
 import "./interfaces/IAVSManager.sol" as avs;
+import "./interfaces/IAvsHook.sol";
 import "@openzeppelin-upgrades/contracts/access/OwnableUpgradeable.sol";
 import "@openzeppelin-upgrades/contracts/proxy/utils/UUPSUpgradeable.sol";
-import "./libraries/TaskDefinitionLibrary.sol";
+
+struct TaskDefinition {
+    uint8 taskDefinitionId;
+    string name; // human readable name
+    uint256 baseRewardFeeForAttesters;
+    uint256 baseRewardFeeForPerformer;
+    uint256 baseRewardFeeForAggregator;
+    uint256 minimumVotingPower;
+    address[] restrictedOperatorIds;
+    uint256 maximumNumberOfAttesters;
+}
 
 /// @title TriggerX AVS (Imua compatible)
 /// @notice Upgradeable contract acting as TriggerX's AVS proxy to the Imua AVS-Manager precompile.
@@ -15,22 +26,35 @@ contract TriggerXAvs is OwnableUpgradeable, UUPSUpgradeable {
     // Storage
     // ---------------------------------------------------------------------
 
-    /// @dev Future on-chain reward handler. 0x0 until decided.
-    address public rewardManager;
+    uint8 private _lastTaskDefinitionId;
+    mapping(uint8 => TaskDefinition) private _taskDefinitions;
+    
+    address public avsHook;
 
-    /// @dev Future on-chain slashing handler. 0x0 until decided.
-    address public slasher;
+    // ---------------------------------------------------------------------
+    // Events
+    // ---------------------------------------------------------------------
 
     event OperatorOptedIn(address indexed operator);
     event OperatorOptedOut(address indexed operator);
     event BLSPublicKeyRegistered(address indexed operator, address indexed avsAddress, bytes pubKey);
     event TaskSubmitted(uint64 indexed taskID, address indexed operator, uint8 phase);
-    event ChallengeSubmitted(uint64 indexed taskID, address indexed challenger, bool isExpected);
+    event ChallengeSubmitted(uint64 taskId, address taskAddress);
+    event TaskCreated(
+        uint256 taskId,
+        address issuer,
+        string name,
+        uint8 taskDefinitionId,
+        bytes taskData,
+        uint64 taskResponsePeriod,
+        uint64 taskChallengePeriod,
+        uint8 thresholdPercentage,
+        uint64 taskStatisticalPeriod
+    );
     event TaskDefinitionCreated(uint8 indexed taskDefinitionId, string name);
-    event TaskCreated(uint64 indexed taskID, bytes32 definitionHash, uint8 kind);
-
-    using TaskDefinitionLibrary for TaskDefinitions;
-    TaskDefinitions private _taskDefs;
+    event TaskDefinitionUpdated(uint8 indexed taskDefinitionId, string name);
+    event AVSRegistered(address indexed sender, string avsName);
+    event AVSUpdated(address indexed sender, string avsName);
 
     // ---------------------------------------------------------------------
     // Initializer & Upgrade Authorization
@@ -44,43 +68,49 @@ contract TriggerXAvs is OwnableUpgradeable, UUPSUpgradeable {
     /// @inheritdoc UUPSUpgradeable
     function _authorizeUpgrade(address) internal override onlyOwner {}
 
-    // ---------------------------------------------------------------------
-    // Admin setters – keep modules pluggable
-    // ---------------------------------------------------------------------
-
-    event RewardManagerUpdated(address indexed newRewardManager);
-    event SlasherUpdated(address indexed newSlasher);
-
-    function setRewardManager(address _rewardManager) external onlyOwner {
-        rewardManager = _rewardManager;
-        emit RewardManagerUpdated(_rewardManager);
-    }
-
-    function setSlasher(address _slasher) external onlyOwner {
-        slasher = _slasher;
-        emit SlasherUpdated(_slasher);
-    }
 
     // ---------------------------------------------------------------------
     // AVS-Manager wrappers
     // ---------------------------------------------------------------------
 
-    function registerAVS(avs.AVSParams calldata params) external onlyOwner returns (bool success) {
+    function registerAVS(
+        avs.AVSParams calldata params
+    ) external onlyOwner returns (bool success) {
         success = avs.AVSMANAGER_CONTRACT.registerAVS(params);
+        if (success) emit AVSRegistered(msg.sender, params.avsName);
     }
 
-    function updateAVS(avs.AVSParams calldata params) external onlyOwner returns (bool success) {
+    function updateAVS(
+        avs.AVSParams calldata params
+    ) external onlyOwner returns (bool success) {
         success = avs.AVSMANAGER_CONTRACT.updateAVS(params);
+        if (success) emit AVSUpdated(msg.sender, params.avsName);
     }
 
     function registerOperatorToAVS() external returns (bool success) {
+        if (avsHook != address(0)) {
+            IAvsHook(avsHook).beforeOperatorOptIn(msg.sender);
+        }
         success = avs.AVSMANAGER_CONTRACT.registerOperatorToAVS(msg.sender);
-        if (success) emit OperatorOptedIn(msg.sender);
+        if (success) {
+            if (avsHook != address(0)) {
+                IAvsHook(avsHook).afterOperatorOptIn(msg.sender);
+            }
+            emit OperatorOptedIn(msg.sender);
+        }
     }
 
     function deregisterOperatorFromAVS() external returns (bool success) {
+        if (avsHook != address(0)) {
+            IAvsHook(avsHook).beforeOperatorOptOut(msg.sender);
+        }
         success = avs.AVSMANAGER_CONTRACT.deregisterOperatorFromAVS(msg.sender);
-        if (success) emit OperatorOptedOut(msg.sender);
+        if (success) {
+            if (avsHook != address(0)) {
+                IAvsHook(avsHook).afterOperatorOptOut(msg.sender);
+            }
+            emit OperatorOptedOut(msg.sender);
+        }
     }
 
     function registerBLSPublicKey(
@@ -97,9 +127,10 @@ contract TriggerXAvs is OwnableUpgradeable, UUPSUpgradeable {
         if (success) emit BLSPublicKeyRegistered(msg.sender, avsAddr, pubKey);
     }
 
-     /**
+    /**
      * @notice Register a new task with Imua AVS-Manager.
      * @param taskName The name of the task.
+     * @param taskData The data of the task.
      * @param taskDefinitionId The ID of the task definition.
      * @param taskResponsePeriod The response period of the task.
      * @param taskChallengePeriod The challenge period of the task.
@@ -110,31 +141,50 @@ contract TriggerXAvs is OwnableUpgradeable, UUPSUpgradeable {
     function createTask(
         string memory taskName,
         uint8 taskDefinitionId,
+        bytes calldata taskData,
         uint64 taskResponsePeriod,
         uint64 taskChallengePeriod,
         uint8 thresholdPercentage,
-        uint64 taskStatisticalPeriod        
+        uint64 taskStatisticalPeriod
     ) external returns (uint64 taskID) {
-
-        TaskDefinition memory taskDef = _taskDefs.getTaskDefinition(taskDefinitionId);
-        bytes32 defHash = keccak256(abi.encode(taskDef));
-
         require(
             thresholdPercentage <= 100,
             "The threshold cannot be greater than 100"
         );
-        
+
+        bytes32 combinedHash = keccak256(
+            abi.encode(
+                taskName,
+                taskDefinitionId,
+                taskData,
+                taskResponsePeriod,
+                taskChallengePeriod,
+                thresholdPercentage,
+                taskStatisticalPeriod
+            )
+        );
+
         taskID = avs.AVSMANAGER_CONTRACT.createTask(
             msg.sender,
             taskName,
-            abi.encodePacked(defHash),
+            abi.encodePacked(combinedHash),
             taskResponsePeriod,
             taskChallengePeriod,
             thresholdPercentage,
             taskStatisticalPeriod
         );
-        
-        emit TaskCreated(taskID, defHash, taskDef.taskDefinitionId);
+
+        emit TaskCreated(
+            taskID,
+            msg.sender,
+            taskName,
+            taskDefinitionId,
+            taskData,
+            taskResponsePeriod,
+            taskChallengePeriod,
+            thresholdPercentage,
+            taskStatisticalPeriod
+        );
     }
 
     function operatorSubmitTask(
@@ -179,18 +229,31 @@ contract TriggerXAvs is OwnableUpgradeable, UUPSUpgradeable {
             eligibleRewardOperators,
             eligibleSlashOperators
         );
-        if (success) emit ChallengeSubmitted(taskID, msg.sender, isExpected);
+        if (success) emit ChallengeSubmitted(taskID, address(this));
     }
 
+    // ---------------------------------------------------------------------
+    // Setters
+    // ---------------------------------------------------------------------
+
+    function setAvsHook(address _avsHook) external onlyOwner {
+        avsHook = _avsHook;
+    }
+    
     // ---------------------------------------------------------------------
     // View helpers delegating to AVS-Manager
     // ---------------------------------------------------------------------
 
-    function getOptInOperators(address avsAddress) external view returns (address[] memory) {
+    function getOptInOperators(
+        address avsAddress
+    ) external view returns (address[] memory) {
         return avs.AVSMANAGER_CONTRACT.getOptInOperators(avsAddress);
     }
 
-    function getRegisteredPubkey(address operator, address avsAddr) external view returns (bytes memory) {
+    function getRegisteredPubkey(
+        address operator,
+        address avsAddr
+    ) external view returns (bytes memory) {
         return avs.AVSMANAGER_CONTRACT.getRegisteredPubkey(operator, avsAddr);
     }
 
@@ -198,15 +261,23 @@ contract TriggerXAvs is OwnableUpgradeable, UUPSUpgradeable {
         return avs.AVSMANAGER_CONTRACT.getAVSUSDValue(avsAddr);
     }
 
-    function getOperatorOptedUSDValue(address avsAddr, address operatorAddr) external view returns (uint256) {
+    function getOperatorOptedUSDValue(
+        address avsAddr,
+        address operatorAddr
+    ) external view returns (uint256) {
         return avs.AVSMANAGER_CONTRACT.getOperatorOptedUSDValue(avsAddr, operatorAddr);
     }
 
-    function getAVSEpochIdentifier(address avsAddr) external view returns (string memory) {
+    function getAVSEpochIdentifier(
+        address avsAddr
+    ) external view returns (string memory) {
         return avs.AVSMANAGER_CONTRACT.getAVSEpochIdentifier(avsAddr);
     }
 
-    function getTaskInfo(address taskAddress, uint64 taskID) external view returns (avs.TaskInfo memory) {
+    function getTaskInfo(
+        address taskAddress,
+        uint64 taskID
+    ) external view returns (avs.TaskInfo memory) {
         return avs.AVSMANAGER_CONTRACT.getTaskInfo(taskAddress, taskID);
     }
 
@@ -214,11 +285,16 @@ contract TriggerXAvs is OwnableUpgradeable, UUPSUpgradeable {
         return avs.AVSMANAGER_CONTRACT.isOperator(operator);
     }
 
-    function getCurrentEpoch(string calldata epochIdentifier) external view returns (int64) {
+    function getCurrentEpoch(
+        string calldata epochIdentifier
+    ) external view returns (int64) {
         return avs.AVSMANAGER_CONTRACT.getCurrentEpoch(epochIdentifier);
     }
 
-    function getChallengeInfo(address taskAddress, uint64 taskID) external view returns (address) {
+    function getChallengeInfo(
+        address taskAddress,
+        uint64 taskID
+    ) external view returns (address) {
         return avs.AVSMANAGER_CONTRACT.getChallengeInfo(taskAddress, taskID);
     }
 
@@ -244,16 +320,61 @@ contract TriggerXAvs is OwnableUpgradeable, UUPSUpgradeable {
     /**
      * @notice Creates TaskDefinition and stores it locally.
      */
-         function createTaskDefinition(
-         string calldata name,
-         TaskDefinitionParams calldata defParams
-     ) external onlyOwner returns (uint8 taskDefinitionId) {
-         taskDefinitionId = _taskDefs.createNewTaskDefinition(name, defParams);
-         emit TaskDefinitionCreated(taskDefinitionId, name);
-     }
+    function createTaskDefinition(
+        string calldata name,
+        uint256 baseRewardFeeForAttesters,
+        uint256 baseRewardFeeForPerformer,
+        uint256 baseRewardFeeForAggregator,
+        uint256 minimumVotingPower,
+        address[] calldata restrictedOperatorIds,
+        uint256 maximumNumberOfAttesters
+    ) external onlyOwner returns (uint8 taskDefinitionId) {
+        taskDefinitionId = ++_lastTaskDefinitionId;
+        _taskDefinitions[taskDefinitionId] = TaskDefinition(
+            taskDefinitionId,
+            name,
+            baseRewardFeeForAttesters,
+            baseRewardFeeForPerformer,
+            baseRewardFeeForAggregator,
+            minimumVotingPower,
+            restrictedOperatorIds,
+            maximumNumberOfAttesters
+        );
+        emit TaskDefinitionCreated(taskDefinitionId, name);
+    }
 
-     function getTaskDefinition(uint8 id) external view returns (TaskDefinition memory) {
-         return _taskDefs.getTaskDefinition(id);
-     }
+    function updateTaskDefinition(
+        uint8 taskDefinitionId,
+        string calldata name,
+        uint256 baseRewardFeeForAttesters,
+        uint256 baseRewardFeeForPerformer,
+        uint256 baseRewardFeeForAggregator,
+        uint256 minimumVotingPower,
+        address[] calldata restrictedOperatorIds,
+        uint256 maximumNumberOfAttesters
+    ) external onlyOwner {
+        require(
+            _taskDefinitions[taskDefinitionId].taskDefinitionId != 0,
+            "TaskDefinition does not exist"
+        );
+        _taskDefinitions[taskDefinitionId] = TaskDefinition(
+            taskDefinitionId,
+            name,
+            baseRewardFeeForAttesters,
+            baseRewardFeeForPerformer,
+            baseRewardFeeForAggregator,
+            minimumVotingPower,
+            restrictedOperatorIds,
+            maximumNumberOfAttesters
+        );
+        emit TaskDefinitionUpdated(taskDefinitionId, name);
+    }
 
-} 
+    function getTaskDefinition(
+        uint8 id
+    ) external view returns (TaskDefinition memory) {
+        return _taskDefinitions[id];
+    }
+
+    uint256[50] private __gap;
+}

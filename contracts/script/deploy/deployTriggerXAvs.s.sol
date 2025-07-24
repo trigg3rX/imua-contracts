@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: MIT
-pragma solidity 0.8.30;
+pragma solidity ^0.8.0;
 
 import "forge-std/Script.sol";
 import "forge-std/console2.sol";
 
 import "openzeppelin-contracts/contracts/proxy/ERC1967/ERC1967Proxy.sol";
 
-import {TriggerXAvs} from "src/TriggerXAvs.sol";
+import {TriggerXAvs} from "../../src/TriggerXAvs.sol";
 
 /// @title DeployTriggerXAvs
 /// @notice Foundry script that deploys the TriggerXAvs implementation contract and
@@ -19,14 +19,14 @@ import {TriggerXAvs} from "src/TriggerXAvs.sol";
 contract DeployTriggerXAvs is Script {
     function run() external returns (TriggerXAvs proxy) {
         // --- Load required env vars ---
-        uint256 deployerPk = vm.envUint("DEV0_PRIVATE_KEY");
-        address owner = 0x9c0E7ECE2749091b47620b79fb43bf81923D48C7;
+        uint256 deployerPk = vm.envUint("PRIVATE_KEY");
+        address owner = vm.addr(deployerPk);
 
         // --- Start broadcasting ---
         vm.startBroadcast(deployerPk);
 
         // 1. Deploy implementation
-        TriggerXAvs implementation = new TriggerXAvs();
+        TriggerXAvs implementation = TriggerXAvs(0x34271cf4f3b76A8ABe541CC1eDAEF66E20437aB9);
         console2.log("TriggerXAvs implementation deployed at", address(implementation));
 
         // 2. Prepare initializer calldata

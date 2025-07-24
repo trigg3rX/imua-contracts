@@ -1,0 +1,17 @@
+{
+  "lib/solady": {
+    "rev": "2af06408b6a204824c2ecb245779ed400b535fb5"
+  },
+  "lib/openzeppelin-contracts-upgradeable": {
+    "rev": "60b305a8f3ff0c7688f02ac470417b6bbf1c4d27"
+  },
+  "lib/LayerZero-v2": {
+    "rev": "88428755be6caa71cb1d2926141d73c8989296b5"
+  },
+  "lib/openzeppelin-contracts": {
+    "rev": "5def3f7c7ef13e06bf868474f258a6e232c9ecec"
+  },
+  "lib/forge-std": {
+    "rev": "77041d2ce690e692d6e03cc812b57d1ddaa4d505"
+  }
+}

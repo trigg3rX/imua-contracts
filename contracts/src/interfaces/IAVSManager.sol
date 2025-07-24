@@ -1,4 +1,5 @@
-pragma solidity >=0.8.30;
+// SPDX-License-Identifier: MIT
+pragma solidity >=0.8.17;
 
 /// @dev The avs-manager contract's address.
 address constant AVSMANAGER_PRECOMPILE_ADDRESS = 0x0000000000000000000000000000000000000901;
